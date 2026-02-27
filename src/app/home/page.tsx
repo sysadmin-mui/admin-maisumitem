@@ -225,7 +225,7 @@ export default function HomePage() {
                 </Link>
 
                 <Link
-                  href="/contributions"
+                  href="/contribuicoes/itens"
                   className="rounded-2xl border px-4 py-4 hover:shadow-sm transition bg-white"
                 >
                   <div

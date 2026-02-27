@@ -37,6 +37,14 @@ api.interceptors.response.use(
 
     const status = error.response?.status;
     const message = error.response?.data?.message;
+    const url = error.config?.url; //debug
+    const method = error.config?.method; //debug
+    const msg = error.response?.data?.message; //debug
+
+    if (status === 401) {
+      console.log("[ADMIN 401]", { method, url, msg });
+      console.log("[TOKEN ATUAL]", sessionStorage.getItem("adminToken"));
+    }
 
     const isAuthError =
       status === 401 ||
