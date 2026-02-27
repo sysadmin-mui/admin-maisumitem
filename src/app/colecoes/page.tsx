@@ -1,15 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopMenu from "../components/TopMenu";
 import Image from "next/image";
 import axios, { AxiosError } from "axios";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+
+import { fetchAdminCollections } from "@/app/lib/endpoints";
 
 const BRAND_YELLOW = "#F4C82E";
 const BRAND_DARK = "#333333";
 
 const DAY_OPTIONS = [1, 3, 7, 14, 30, 90, 180, 365] as const;
+
+function isAxiosError(error: unknown): error is AxiosError {
+  return axios.isAxiosError(error);
+}
+function getAxiosStatus(error: unknown): number | null {
+  if (!isAxiosError(error)) return null;
+  return error.response?.status ?? null;
+}
 
 function formatDateTime(iso?: string | null) {
   if (!iso) return "-";
@@ -22,27 +33,6 @@ function formatNumber(n: number) {
   return n.toLocaleString("pt-BR");
 }
 
-type ICollectionStatsData = {
-  id: string;
-  name: string;
-  created_at: string;
-  user: {
-    username: string;
-    avatar_url: string | null;
-  };
-};
-
-type IStatsCollectionPaginate = {
-  from: number;
-  to: number;
-  per_page: number;
-  total: number;
-  current_page: number;
-  prev_page: number | null;
-  next_page: number | null;
-  data: ICollectionStatsData[];
-};
-
 export default function CollectionsPage() {
   const router = useRouter();
 
@@ -50,20 +40,21 @@ export default function CollectionsPage() {
   const [days, setDays] = useState<number>(7);
   const [page, setPage] = useState<number>(1);
 
-  const [resp, setResp] = useState<IStatsCollectionPaginate | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const baseUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "", []);
-
   // Guard do token
   useEffect(() => {
-    const token = sessionStorage.getItem("adminToken");
-    if (!token) {
+    try {
+      if (typeof window === "undefined") return;
+
+      const token = sessionStorage.getItem("adminToken");
+
+      if (!token) {
+        router.replace("/");
+        return;
+      }
+      setGuardLoading(false);
+    } catch {
       router.replace("/");
-      return;
     }
-    setGuardLoading(false);
   }, [router]);
 
   // quando mudar days, volta pra página 1
@@ -71,60 +62,22 @@ export default function CollectionsPage() {
     setPage(1);
   }, [days]);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setErrorMsg(null);
-
-      try {
-        const token = sessionStorage.getItem("adminToken");
-        if (!token) return;
-
-        const response = await axios.get<IStatsCollectionPaginate>(
-          `${baseUrl}/admin/stats/collections`,
-          {
-            params: { days, page },
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        const json = response.data;
-
-        setResp({
-          from: Number(json.from) || 0,
-          to: Number(json.to) || 0,
-          per_page: Number(json.per_page),
-          total: Number(json.total) || 0,
-          current_page: Number(json.current_page) || page,
-          prev_page: json.prev_page ?? null,
-          next_page: json.next_page ?? null,
-          data: Array.isArray(json.data) ? json.data : [],
-        });
-      } catch (err) {
-        const error = err as AxiosError;
-
-        if (error.response?.status === 401) {
-          sessionStorage.removeItem("adminToken");
-          router.replace("/");
-          return;
-        }
-
-        setErrorMsg(
-          error.response
-            ? `Erro ao carregar coleções (${error.response.status}).`
-            : "Falha de rede ao carregar coleções.",
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (!guardLoading) load();
-  }, [guardLoading, baseUrl, days, page, router]);
+  const collectionsQuery = useQuery({
+    queryKey: ["admin-collections", days, page],
+    queryFn: () => fetchAdminCollections(days, page),
+    enabled: !guardLoading,
+    placeholderData: keepPreviousData,
+    retry: (failureCount, err) => {
+      const status = getAxiosStatus(err);
+      if (status === 401) return false;
+      return failureCount < 2;
+    },
+  });
 
   if (guardLoading) return null;
+
+  const resp = collectionsQuery.data ?? null;
+  const loading = collectionsQuery.isLoading || collectionsQuery.isFetching;
 
   const collections = resp?.data ?? [];
   const total = resp?.total ?? 0;
@@ -132,8 +85,17 @@ export default function CollectionsPage() {
   const to = resp?.to ?? 0;
   const perPage = resp?.per_page ?? 0;
   const currentPage = resp?.current_page ?? page;
-  const hasPrev = resp?.prev_page !== null && resp?.prev_page !== undefined;
-  const hasNext = resp?.next_page !== null && resp?.next_page !== undefined;
+  const hasPrev = resp?.prev_page != null;
+  const hasNext = resp?.next_page != null;
+
+  const errorMsg = collectionsQuery.isError
+    ? (() => {
+        const status = getAxiosStatus(collectionsQuery.error);
+        return status
+          ? `Erro ao carregar coleções (${status}).`
+          : "Falha de rede ao carregar coleções.";
+      })()
+    : null;
 
   const Pagination = () => (
     <div className="flex items-center gap-2">

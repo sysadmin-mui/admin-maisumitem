@@ -4,16 +4,28 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import TopMenu from "../components/TopMenu";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+
+import axios, { AxiosError } from "axios";
+
+import { fetchAdminStats } from "@/app/lib/endpoints";
 
 const BRAND_YELLOW = "#F4C82E";
 const BRAND_DARK = "#333333";
 
-type AdminStats = {
-  users: number;
-  collections: number;
-  items: number;
-  posts: number;
-};
+function isAxiosError(error: unknown): error is AxiosError {
+  return axios.isAxiosError(error);
+}
+
+function getAxiosStatus(error: unknown): number | null {
+  if (!isAxiosError(error)) return null;
+  return error.response?.status ?? null;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return "UNKNOWN_ERROR";
+}
 
 function StatCard({
   title,
@@ -55,83 +67,43 @@ function StatCard({
 export default function HomePage() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
-
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(true);
+  const [guardLoading, setGuardLoading] = useState(true);
 
   useEffect(() => {
-    const token = sessionStorage.getItem("adminToken");
+    try {
+      if (typeof window === "undefined") return;
 
-    if (!token) {
+      const token = sessionStorage.getItem("adminToken");
+
+      if (!token) {
+        router.replace("/");
+        return;
+      }
+      setGuardLoading(false);
+    } catch {
       router.replace("/");
-      return;
     }
-
-    setLoading(false);
   }, [router]);
 
-  useEffect(() => {
-    async function loadStats() {
-      try {
-        const token = sessionStorage.getItem("adminToken");
-        if (!token) return;
+  const statsQuery = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: fetchAdminStats,
+    enabled: !guardLoading,
+    retry: (failureCount, err) => {
+      const msg = getErrorMessage(err);
+      const status = getAxiosStatus(err);
 
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (msg === "NO_TOKEN") return false;
+      if (status === 401) return false;
 
-        const res = await fetch(`${baseUrl}/admin/stats`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          cache: "no-store",
-        });
+      return failureCount < 2;
+    },
+  });
 
-        if (res.status === 401) {
-          sessionStorage.removeItem("adminToken");
-          router.replace("/");
-          return;
-        }
+  if (guardLoading) return null;
 
-        if (!res.ok) {
-          let errorBody: string | null = null;
-
-          try {
-            errorBody = await res.text();
-          } catch {
-            errorBody = "Não foi possível ler o body do erro";
-          }
-
-          console.error("Erro ao buscar /admin/stats", {
-            status: res.status,
-            statusText: res.statusText,
-            body: errorBody,
-          });
-
-          throw new Error(
-            `Erro ao buscar stats (${res.status} ${res.statusText})`,
-          );
-        }
-
-        const data: AdminStats = await res.json();
-
-        setStats({
-          users: Number(data.users),
-          collections: Number(data.collections),
-          items: Number(data.items),
-          posts: Number(data.posts),
-        });
-      } catch (err) {
-        console.error("Erro ao carregar /admin/stats", err);
-      } finally {
-        setStatsLoading(false);
-      }
-    }
-
-    // Só tenta carregar stats depois que passou pelo guard do token
-    if (!loading) loadStats();
-  }, [loading, router]);
-
-  if (loading) return null;
+  const stats = statsQuery.data ?? null;
+  const statsLoading = statsQuery.isLoading || statsQuery.isFetching;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

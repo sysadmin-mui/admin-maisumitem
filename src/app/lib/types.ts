@@ -126,3 +126,51 @@ export type IStatsTicketsPaginate = {
   next_page: number | null;
   data: ITicketRow[];
 };
+
+type ICollectionStatsData = {
+  id: string;
+  name: string;
+  created_at: string;
+  user: {
+    username: string;
+    avatar_url: string | null;
+  };
+};
+
+export type IStatsCollectionPaginate = {
+  from: number;
+  to: number;
+  per_page: number;
+  total: number;
+  current_page: number;
+  prev_page: number | null;
+  next_page: number | null;
+  data: ICollectionStatsData[];
+};
+
+export type AdminStats = {
+  users: number;
+  collections: number;
+  items: number;
+  posts: number;
+};
+
+type IUserStatsData = {
+  id: string;
+  profile: {
+    username: string;
+    avatar_url: string | null;
+    created_at: string;
+  };
+};
+
+export type IStatsUserPaginate = {
+  from: number;
+  to: number;
+  per_page: number;
+  total: number;
+  current_page: number;
+  prev_page: number | null;
+  next_page: number | null;
+  data: IUserStatsData[];
+};

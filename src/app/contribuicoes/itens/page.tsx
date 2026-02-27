@@ -205,9 +205,8 @@ export default function ContributionItemsPage() {
       setEditItem(null);
     },
     onError: (err) => {
-      const msg = getErrorMessage(err);
-
-      alert(msg);
+      const status = getAxiosStatus(err);
+      alert(status ? `Erro (${status}).` : "Falha de rede.");
     },
   });
 
@@ -222,9 +221,8 @@ export default function ContributionItemsPage() {
       });
     },
     onError: (err) => {
-      const msg = getErrorMessage(err);
-
-      alert(msg);
+      const status = getAxiosStatus(err);
+      alert(status ? `Erro (${status}).` : "Falha de rede.");
     },
   });
 
@@ -245,8 +243,7 @@ export default function ContributionItemsPage() {
     },
     onError: (err) => {
       const status = getAxiosStatus(err);
-
-      setDelErr(status ? `Erro ao excluir (${status}).` : "Falha ao excluir.");
+      alert(status ? `Erro (${status}).` : "Falha de rede.");
     },
   });
 

@@ -211,15 +211,8 @@ export default function ContributionTicketsPage() {
       await queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
     },
     onError: (err) => {
-      const msg = getErrorMessage(err);
       const status = getAxiosStatus(err);
-
-      if (msg === "NO_TOKEN" || status === 401) {
-        router.replace("/");
-        return;
-      }
-
-      setCloseError("Não foi possível finalizar o ticket. Tente novamente.");
+      alert(status ? `Erro (${status}).` : "Falha de rede.");
     },
   });
 
@@ -253,15 +246,8 @@ export default function ContributionTicketsPage() {
     },
 
     onError: (err) => {
-      const msg = getErrorMessage(err);
       const status = getAxiosStatus(err);
-
-      if (msg === "NO_TOKEN" || status === 401) {
-        router.replace("/");
-        return;
-      }
-
-      setAnswerErr(status ? `Erro ao enviar (${status}).` : "Falha ao enviar.");
+      alert(status ? `Erro (${status}).` : "Falha de rede.");
     },
   });
 

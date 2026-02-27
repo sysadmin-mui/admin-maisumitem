@@ -1,36 +1,34 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopMenu from "../components/TopMenu";
 import Image from "next/image";
 
 import axios, { AxiosError } from "axios";
 
+import { fetchAdminUsers } from "@/app/lib/endpoints";
+
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+
 const BRAND_YELLOW = "#F4C82E";
 const BRAND_DARK = "#333333";
 
-type IUserStatsData = {
-  id: string;
-  profile: {
-    username: string;
-    avatar_url: string | null;
-    created_at: string;
-  };
-};
-
-type IStatsUserPaginate = {
-  from: number;
-  to: number;
-  per_page: number;
-  total: number;
-  current_page: number;
-  prev_page: number | null;
-  next_page: number | null;
-  data: IUserStatsData[];
-};
-
 const DAY_OPTIONS = [1, 3, 7, 14, 30, 90, 180, 365] as const;
+
+function isAxiosError(error: unknown): error is AxiosError {
+  return axios.isAxiosError(error);
+}
+
+function getAxiosStatus(error: unknown): number | null {
+  if (!isAxiosError(error)) return null;
+  return error.response?.status ?? null;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return "UNKNOWN_ERROR";
+}
 
 function formatDateTime(iso?: string | null) {
   if (!iso) return "-";
@@ -47,25 +45,24 @@ export default function UsersPage() {
   const router = useRouter();
 
   const [guardLoading, setGuardLoading] = useState(true);
-
   const [days, setDays] = useState<number>(7);
-
   const [page, setPage] = useState<number>(1);
-
-  const [resp, setResp] = useState<IStatsUserPaginate | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const baseUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "", []);
 
   // Guard do token
   useEffect(() => {
-    const token = sessionStorage.getItem("adminToken");
-    if (!token) {
+    try {
+      if (typeof window === "undefined") return;
+
+      const token = sessionStorage.getItem("adminToken");
+
+      if (!token) {
+        router.replace("/");
+        return;
+      }
+      setGuardLoading(false);
+    } catch {
       router.replace("/");
-      return;
     }
-    setGuardLoading(false);
   }, [router]);
 
   // quando mudar days, volta pra página 1
@@ -73,72 +70,42 @@ export default function UsersPage() {
     setPage(1);
   }, [days]);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setErrorMsg(null);
+  const usersQuery = useQuery({
+    queryKey: ["admin-users", days, page],
+    queryFn: () => fetchAdminUsers(days, page),
+    enabled: !guardLoading,
+    placeholderData: keepPreviousData,
+    retry: (failureCount, err) => {
+      const msg = getErrorMessage(err);
+      const status = getAxiosStatus(err);
 
-      try {
-        const token = sessionStorage.getItem("adminToken");
-        if (!token) return;
+      if (msg === "NO_TOKEN") return false;
+      if (status === 401) return false;
 
-        const response = await axios.get<IStatsUserPaginate>(
-          `${baseUrl}/admin/stats/users`,
-          {
-            params: {
-              days,
-              page,
-            },
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        const json = response.data;
-
-        setResp({
-          from: Number(json.from) || 0,
-          to: Number(json.to) || 0,
-          per_page: Number(json.per_page),
-          total: Number(json.total) || 0,
-          current_page: Number(json.current_page) || page,
-          prev_page: json.prev_page ?? null,
-          next_page: json.next_page ?? null,
-          data: Array.isArray(json.data) ? json.data : [],
-        });
-      } catch (err) {
-        const error = err as AxiosError;
-
-        if (error.response?.status === 401) {
-          sessionStorage.removeItem("adminToken");
-          router.replace("/");
-          return;
-        }
-
-        setErrorMsg(
-          error.response
-            ? `Erro ao carregar usuários (${error.response.status}).`
-            : "Falha de rede ao carregar usuários.",
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (!guardLoading) load();
-  }, [guardLoading, baseUrl, days, page, router]);
+      return failureCount < 2;
+    },
+  });
 
   if (guardLoading) return null;
+
+  const resp = usersQuery.data ?? null;
 
   const users = resp?.data ?? [];
   const total = resp?.total ?? 0;
   const from = resp?.from ?? 0;
   const to = resp?.to ?? 0;
-  const perPage = resp?.per_page;
+  const perPage = resp?.per_page ?? 0;
   const currentPage = resp?.current_page ?? page;
+
   const hasPrev = resp?.prev_page !== null && resp?.prev_page !== undefined;
+
   const hasNext = resp?.next_page !== null && resp?.next_page !== undefined;
+
+  const loading = usersQuery.isLoading || usersQuery.isFetching;
+
+  const errorMsg = usersQuery.isError
+    ? "Não foi possível carregar usuários."
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

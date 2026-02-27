@@ -142,19 +142,8 @@ export default function ContributionVariationsPage() {
       setApproveOpenId(null);
     },
     onError: (err) => {
-      const error = err as AxiosError;
-
-      if (error.response?.status === 401) {
-        sessionStorage.removeItem("adminToken");
-        router.replace("/");
-        return;
-      }
-
-      alert(
-        error.response
-          ? `Erro ao aprovar variação (${error.response.status}).`
-          : "Falha de rede ao aprovar variação.",
-      );
+      const status = getAxiosStatus(err);
+      alert(status ? `Erro (${status}).` : "Falha de rede.");
     },
   });
 
@@ -188,19 +177,8 @@ export default function ContributionVariationsPage() {
     },
 
     onError: (err) => {
-      const error = err as AxiosError;
-
-      if (error.response?.status === 401) {
-        sessionStorage.removeItem("adminToken");
-        router.replace("/");
-        return;
-      }
-
-      alert(
-        error.response
-          ? `Erro ao editar variação (${error.response.status}).`
-          : "Falha de rede ao editar variação.",
-      );
+      const status = getAxiosStatus(err);
+      alert(status ? `Erro (${status}).` : "Falha de rede.");
     },
   });
 
@@ -223,19 +201,7 @@ export default function ContributionVariationsPage() {
 
     onError: (err) => {
       const status = getAxiosStatus(err);
-
-      // se você quiser manter o comportamento de "deslogar" em 401, igual approve/edit:
-      if (status === 401) {
-        sessionStorage.removeItem("adminToken");
-        router.replace("/");
-        return;
-      }
-
-      setDelVarErr(
-        status
-          ? `Erro ao excluir variação (${status}).`
-          : "Falha ao excluir variação.",
-      );
+      alert(status ? `Erro (${status}).` : "Falha de rede.");
     },
   });
 
@@ -253,12 +219,11 @@ export default function ContributionVariationsPage() {
   const hasPrev = resp?.prev_page !== null && resp?.prev_page !== undefined;
   const hasNext = resp?.next_page !== null && resp?.next_page !== undefined;
 
-  const loading = variationsQuery.isLoading;
+  const loading = variationsQuery.isLoading || variationsQuery.isFetching;
   const errorMsg = variationsQuery.error
     ? (() => {
         const err = variationsQuery.error;
 
-        // você pode manter exatamente como no Items (se lá já formata bonitinho)
         if (err instanceof AxiosError) {
           if (err.response)
             return `Erro ao carregar variações (${err.response.status}).`;

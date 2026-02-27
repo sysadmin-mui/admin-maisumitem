@@ -7,6 +7,9 @@ import {
   IStatsVariationPaginate,
   IStatsTicketsPaginate,
   ITicketRow,
+  IStatsCollectionPaginate,
+  AdminStats,
+  IStatsUserPaginate,
 } from "./types";
 
 export async function fetchAdminItems(days: number, page: number) {
@@ -171,4 +174,45 @@ export async function answerAdminTicket(ticketId: string, answer: string) {
   });
 
   return data;
+}
+
+export async function fetchAdminCollections(days: number, page: number) {
+  const res = await api.get<IStatsCollectionPaginate>(
+    "/admin/stats/collections",
+    {
+      params: { days, page },
+    },
+  );
+  return res.data;
+}
+
+export async function fetchAdminStats() {
+  const res = await api.get<AdminStats>("/admin/stats");
+  const data = res.data;
+
+  return {
+    users: Number(data.users) || 0,
+    collections: Number(data.collections) || 0,
+    items: Number(data.items) || 0,
+    posts: Number(data.posts) || 0,
+  };
+}
+
+export async function fetchAdminUsers(days: number, page: number) {
+  const res = await api.get<IStatsUserPaginate>("/admin/stats/users", {
+    params: { days, page },
+  });
+
+  const json = res.data;
+
+  return {
+    from: Number(json.from) || 0,
+    to: Number(json.to) || 0,
+    per_page: Number(json.per_page) || 0,
+    total: Number(json.total) || 0,
+    current_page: Number(json.current_page) || page,
+    prev_page: json.prev_page ?? null,
+    next_page: json.next_page ?? null,
+    data: Array.isArray(json.data) ? json.data : [],
+  } satisfies IStatsUserPaginate;
 }
