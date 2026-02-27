@@ -715,6 +715,10 @@ export default function ContributionTicketsPage() {
                             </div>
 
                             <div className="mt-0.5 text-xs text-gray-500 whitespace-pre-wrap break-words">
+                              {t.id}
+                            </div>
+
+                            <div className="mt-0.5 text-xs text-gray-500 whitespace-pre-wrap break-words">
                               {t.description}
                             </div>
 
