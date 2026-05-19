@@ -1,5 +1,24 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## API proxy
+
+Browser requests use the same-origin `/api/backend` route to avoid CORS
+preflight failures against the API domain.
+
+Configure the backend URL on the server:
+
+```env
+API_URL=https://api.maisumitem.com.br
+```
+
+If the API is protected by Cloudflare Access, create a Service Token policy for
+the backend application and set the token credentials on the admin deployment:
+
+```env
+CF_ACCESS_CLIENT_ID=...
+CF_ACCESS_CLIENT_SECRET=...
+```
+
 ## Getting Started
 
 First, run the development server:

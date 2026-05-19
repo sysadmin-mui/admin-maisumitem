@@ -5,11 +5,7 @@ import { getAdminToken, clearAdminSession } from "./auth";
  * ✅ Instância principal do Axios
  */
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
-  withCredentials: true, // mantém caso use cookies no futuro
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: process.env.NEXT_PUBLIC_API_PROXY_URL ?? "/api/backend",
 });
 
 api.interceptors.request.use(

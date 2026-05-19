@@ -113,10 +113,6 @@ export async function deleteAdminVariation(id: string, reason: string) {
 }
 
 export async function fetchAdminTickets(days: number, page: number) {
-  // se você já faz esse padrão nos outros fetch:
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!baseUrl) throw new Error("NO_BASEURL");
-
   const token =
     typeof window !== "undefined" ? sessionStorage.getItem("adminToken") : null;
 
