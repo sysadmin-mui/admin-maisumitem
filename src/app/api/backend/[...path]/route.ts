@@ -62,6 +62,8 @@ async function proxyRequest(req: NextRequest, { params }: Params) {
   const responseHeaders = new Headers(upstreamResponse.headers);
 
   HOP_BY_HOP_HEADERS.forEach((header) => responseHeaders.delete(header));
+  // fetch entrega o corpo já descompactado; o navegador não deve descompactá-lo de novo.
+  responseHeaders.delete("content-encoding");
 
   return new NextResponse(upstreamResponse.body, {
     status: upstreamResponse.status,
