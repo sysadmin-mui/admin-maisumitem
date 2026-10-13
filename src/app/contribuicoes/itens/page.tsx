@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import TopMenu from "../../components/TopMenu";
 import ContributionsSubMenu from "../../components/ContributionsSubMenu";
+import ChangeContributionImageWithAiDialog from "../../components/ChangeContributionImageWithAiDialog";
 
 import Image from "next/image";
 
@@ -107,6 +108,7 @@ export default function ContributionItemsPage() {
   // Modal mudar imagem
   const [imgOpen, setImgOpen] = useState(false);
   const [imgItem, setImgItem] = useState<IItemStatsData | null>(null);
+  const [aiImageItem, setAiImageItem] = useState<IItemStatsData | null>(null);
 
   const [credits, setCredits] = useState("");
 
@@ -744,6 +746,15 @@ export default function ContributionItemsPage() {
                                 >
                                   Mudar imagem
                                 </button>
+
+                                {it.object?.trim().toLowerCase() === "camisa" && !!it.images_url?.[0] && (
+                                  <button
+                                    className="cursor-pointer rounded-xl border border-gray-300 px-3 py-2 text-xs font-semibold transition hover:bg-gray-50"
+                                    onClick={() => setAiImageItem(it)}
+                                  >
+                                    Mudar imagem com IA
+                                  </button>
+                                )}
                               </div>
 
                               <button
@@ -772,6 +783,17 @@ export default function ContributionItemsPage() {
             </>
           )}
         </section>
+
+        {aiImageItem && (
+          <ChangeContributionImageWithAiDialog
+            item={aiImageItem}
+            onClose={() => setAiImageItem(null)}
+            onApproved={() => {
+              setAiImageItem(null);
+              void queryClient.invalidateQueries({ queryKey: ["admin-items"] });
+            }}
+          />
+        )}
 
         {/* Modal Preview Imagem */}
         {previewImage && (

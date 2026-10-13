@@ -153,6 +153,113 @@ export type AdminStats = {
   collections: number;
   items: number;
   posts: number;
+  products: number;
+};
+
+export type AdminCatalogProduct = {
+  id: string;
+  item_id: string | null;
+  item_id_not_applicable: boolean;
+  name: string;
+  object: string | null;
+  merchant_name: string | null;
+  brand_name: string | null;
+  team_name: string | null;
+  team_type: string | null;
+  country: string | null;
+  sport: string | null;
+  condition: string | null;
+  type: string | null;
+  size: string | null;
+  year: number | null;
+  price_amount: string | null;
+  original_price_amount: string | null;
+  currency: string | null;
+  image_url: string | null;
+  thumb_url: string | null;
+  product_url: string | null;
+  created_at: string;
+  last_seen_at: string;
+};
+
+export type ProductItemDraft = {
+  team_type: "Time" | "Seleção";
+  info1: string;
+  info2: string;
+  info3: string;
+  info4: string;
+  info5: string;
+  year: number | null;
+  year2: number | null;
+  catalog_option_found: boolean;
+};
+
+export type CreateItemFromProductPayload = Omit<ProductItemDraft, "catalog_option_found">;
+
+export type CreateItemFromProductResponse = {
+  item_id: string;
+  product_id: string;
+  slug: string;
+};
+
+export type AdminCatalogProductsPaginate = {
+  from: number;
+  to: number;
+  per_page: number;
+  total: number;
+  current_page: number;
+  prev_page: number | null;
+  next_page: number | null;
+  data: AdminCatalogProduct[];
+};
+
+export type AdminCatalogProductFilters = {
+  objects: string[];
+  merchants: string[];
+};
+
+export type AdminProduct = {
+  id: string;
+  name: string;
+  brand_name: string | null;
+  team_name: string | null;
+  team_type: string | null;
+  merchant_name: string | null;
+  image_url: string | null;
+  thumb_url: string | null;
+  product_url: string | null;
+  last_seen_at: string;
+  similar_catalog_options?: {
+    id: number;
+    title: string;
+    category: string;
+    similarity: number;
+  }[];
+};
+
+export type CatalogOptionCategory = "brands" | "teams" | "nations";
+
+export type CreateCatalogOptionPayload = {
+  title: string;
+  category: CatalogOptionCategory;
+  country?: string;
+  sport?: string;
+};
+
+export type CreateCatalogOptionResponse = {
+  created: boolean;
+  option: CreateCatalogOptionPayload & { id: number };
+};
+
+export type AdminProductsPaginate = {
+  from: number;
+  to: number;
+  per_page: number;
+  total: number;
+  current_page: number;
+  prev_page: number | null;
+  next_page: number | null;
+  data: AdminProduct[];
 };
 
 type IUserStatsData = {

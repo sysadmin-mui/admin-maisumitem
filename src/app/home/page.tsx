@@ -10,9 +10,6 @@ import axios, { AxiosError } from "axios";
 
 import { fetchAdminStats } from "@/app/lib/endpoints";
 
-const BRAND_YELLOW = "#F4C82E";
-const BRAND_DARK = "#333333";
-
 function isAxiosError(error: unknown): error is AxiosError {
   return axios.isAxiosError(error);
 }
@@ -30,39 +27,57 @@ function getErrorMessage(error: unknown): string {
 function StatCard({
   title,
   value,
-  subtitle,
+  description,
 }: {
   title: string;
   value: string | number;
-  subtitle?: string;
+  description: string;
 }) {
   return (
-    <div className="rounded-2xl border bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold" style={{ color: BRAND_DARK }}>
-            {title}
-          </div>
-          <div
-            className="mt-2 text-3xl font-extrabold"
-            style={{ color: BRAND_DARK }}
-          >
-            {value}
-          </div>
-          {subtitle ? (
-            <div className="mt-1 text-xs text-gray-500">{subtitle}</div>
-          ) : null}
-        </div>
-
-        <div
-          className="h-10 w-10 rounded-2xl"
-          style={{ backgroundColor: "rgba(244,200,46,0.25)" }}
-          aria-hidden
-        />
+    <div className="flex min-h-36 flex-col justify-between rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <p className="text-sm font-semibold text-gray-700">{title}</p>
+      <div className="mt-5">
+        <p className="text-3xl font-extrabold tabular-nums tracking-tight text-[#303030]">
+          {typeof value === "number" ? value.toLocaleString("pt-BR") : value}
+        </p>
+        <p className="mt-1 text-xs text-gray-500">{description}</p>
       </div>
     </div>
   );
 }
+
+const quickLinks = [
+  {
+    href: "/produtos",
+    title: "Todos os produtos",
+    description: "Consultar produtos por período, objeto e loja.",
+  },
+  {
+    href: "/products",
+    title: "Corrigir produtos",
+    description: "Revisar marcas e times ausentes do catálogo.",
+  },
+  {
+    href: "/usuarios",
+    title: "Usuários",
+    description: "Consultar e moderar contas cadastradas.",
+  },
+  {
+    href: "/colecoes",
+    title: "Coleções",
+    description: "Acompanhar coleções e aprovações.",
+  },
+  {
+    href: "/contribuicoes/itens",
+    title: "Contribuições",
+    description: "Avaliar itens, imagens e metadados enviados.",
+  },
+  {
+    href: "/tickets",
+    title: "Tickets",
+    description: "Acompanhar solicitações e denúncias.",
+  },
+];
 
 export default function HomePage() {
   const router = useRouter();
@@ -103,215 +118,115 @@ export default function HomePage() {
   if (guardLoading) return null;
 
   const stats = statsQuery.data ?? null;
-  const statsLoading = statsQuery.isLoading || statsQuery.isFetching;
+  const statsLoading = statsQuery.isLoading;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="flex min-h-screen flex-col bg-gray-50 text-[#303030]">
       <TopMenu />
 
       <main className="flex-1">
-        {/* Header da página */}
-        <section className="border-b bg-white">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
-            <div className="flex flex-col gap-2">
-              <div className="inline-flex items-center gap-2">
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: BRAND_YELLOW }}
-                />
-                <span className="text-sm text-gray-500">
-                  Painel administrativo
-                </span>
-              </div>
-
-              <h1
-                className="text-2xl sm:text-3xl font-extrabold"
-                style={{ color: BRAND_DARK }}
-              >
-                Login admin efetuado com sucesso
+        <section className="border-b border-gray-200 bg-white">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5 px-4 py-8 sm:px-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500">
+                Painel administrativo
+              </p>
+              <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">
+                Visão geral
               </h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Acompanhe os cadastros e acesse as áreas do admin.
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                sessionStorage.removeItem("adminToken");
+                router.replace("/");
+              }}
+              className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold transition hover:bg-gray-50"
+            >
+              Sair do admin
+            </button>
           </div>
         </section>
 
-        {/* Conteúdo */}
-        <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
-          {/* Cards de resumo */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {statsLoading ? (
-              <>
-                <div className="h-[120px] rounded-2xl bg-gray-200 animate-pulse" />
-                <div className="h-[120px] rounded-2xl bg-gray-200 animate-pulse" />
-                <div className="h-[120px] rounded-2xl bg-gray-200 animate-pulse" />
-                <div className="h-[120px] rounded-2xl bg-gray-200 animate-pulse" />
-              </>
-            ) : (
-              <>
-                <StatCard
-                  title="Usuários cadastrados"
-                  value={stats?.users ?? 0}
-                  subtitle="Total no sistema"
-                />
-                <StatCard
-                  title="Coleções criadas"
-                  value={stats?.collections ?? 0}
-                  subtitle="Total de coleções"
-                />
-                <StatCard
-                  title="Itens catalogados"
-                  value={stats?.items ?? 0}
-                  subtitle="Total de itens"
-                />
-                <StatCard
-                  title="Posts publicados"
-                  value={stats?.posts ?? 0}
-                  subtitle="Total de posts"
-                />
-              </>
-            )}
-          </div>
-
-          {/* Ações rápidas */}
-          <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 rounded-2xl border bg-white p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2
-                    className="text-lg font-bold"
-                    style={{ color: BRAND_DARK }}
-                  >
-                    Ações rápidas
-                  </h2>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Entradas diretas para as áreas mais usadas no dia a dia.
-                  </p>
-                </div>
-                <div
-                  className="h-12 w-12 rounded-2xl"
-                  style={{ backgroundColor: "rgba(244,200,46,0.18)" }}
-                  aria-hidden
-                />
-              </div>
-
-              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Link
-                  href="/usuarios"
-                  className="rounded-2xl border px-4 py-4 hover:shadow-sm transition bg-white"
-                >
-                  <div
-                    className="text-sm font-semibold"
-                    style={{ color: BRAND_DARK }}
-                  >
-                    Usuários
-                  </div>
-                  <div className="mt-1 text-xs text-gray-600">
-                    Visualizar, buscar e moderar contas.
-                  </div>
-                </Link>
-
-                <Link
-                  href="/colecoes"
-                  className="rounded-2xl border px-4 py-4 hover:shadow-sm transition bg-white"
-                >
-                  <div
-                    className="text-sm font-semibold"
-                    style={{ color: BRAND_DARK }}
-                  >
-                    Coleções
-                  </div>
-                  <div className="mt-1 text-xs text-gray-600">
-                    Revisar coleções, aprovações e organização.
-                  </div>
-                </Link>
-
-                <Link
-                  href="/contribuicoes/itens"
-                  className="rounded-2xl border px-4 py-4 hover:shadow-sm transition bg-white"
-                >
-                  <div
-                    className="text-sm font-semibold"
-                    style={{ color: BRAND_DARK }}
-                  >
-                    Contribuições
-                  </div>
-                  <div className="mt-1 text-xs text-gray-600">
-                    Avaliar envios (imagens, itens, metadados).
-                  </div>
-                </Link>
-
-                <Link
-                  href="/tickets"
-                  className="rounded-2xl border px-4 py-4 hover:shadow-sm transition bg-white"
-                >
-                  <div
-                    className="text-sm font-semibold"
-                    style={{ color: BRAND_DARK }}
-                  >
-                    Tickets
-                  </div>
-                  <div className="mt-1 text-xs text-gray-600">
-                    Suporte, denúncias e solicitações.
-                  </div>
-                </Link>
-              </div>
+        <div className="mx-auto max-w-6xl space-y-10 px-4 py-8 sm:px-6">
+          <section aria-labelledby="home-summary-title">
+            <div className="mb-4">
+              <h2 id="home-summary-title" className="text-lg font-bold">
+                Resumo
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Totais cadastrados no sistema.
+              </p>
             </div>
 
-            <div className="rounded-2xl border bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold" style={{ color: BRAND_DARK }}>
-                Status
-              </h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Indicadores rápidos (placeholder).
-              </p>
-
-              <div className="mt-4 space-y-3">
-                <div className="rounded-2xl bg-gray-50 p-4 border">
-                  <div className="flex items-center justify-between">
-                    <span
-                      className="text-sm font-semibold"
-                      style={{ color: BRAND_DARK }}
-                    >
-                      API (admin)
-                    </span>
-                    <span
-                      className="text-xs font-bold rounded-full px-2 py-1"
-                      style={{
-                        backgroundColor: "rgba(244,200,46,0.25)",
-                        color: BRAND_DARK,
-                      }}
-                    >
-                      OK
-                    </span>
-                  </div>
-                  <div className="mt-2 h-2 w-full rounded-full bg-gray-200 overflow-hidden">
-                    <div
-                      className="h-full w-4/5"
-                      style={{ backgroundColor: BRAND_YELLOW }}
-                    />
-                  </div>
-                  <div className="mt-2 text-xs text-gray-500">
-                    Depois a gente pluga uptime/healthcheck real.
-                  </div>
-                </div>
-
+            {statsQuery.isError && (
+              <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                Não foi possível carregar os totais.
                 <button
-                  className="w-full rounded-2xl px-4 py-3 text-sm font-semibold transition active:scale-[0.99]"
-                  style={{ backgroundColor: BRAND_DARK, color: "white" }}
-                  onClick={() => {
-                    sessionStorage.removeItem("adminToken");
-                    router.replace("/");
-                  }}
+                  type="button"
+                  onClick={() => statsQuery.refetch()}
+                  className="ml-2 font-semibold underline"
                 >
-                  Sair do admin
+                  Tentar novamente
                 </button>
               </div>
-            </div>
-          </div>
+            )}
 
-          <footer className="mt-10 pb-6 text-xs text-gray-400">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              {statsLoading ? (
+                Array.from({ length: 5 }, (_, index) => (
+                  <div key={index} className="h-36 animate-pulse rounded-2xl border border-gray-200 bg-white" />
+                ))
+              ) : (
+                <>
+                  <StatCard title="Usuários" value={stats?.users ?? "—"} description="Contas cadastradas" />
+                  <StatCard title="Coleções" value={stats?.collections ?? "—"} description="Criadas no sistema" />
+                  <StatCard title="Itens" value={stats?.items ?? "—"} description="Catalogados" />
+                  <StatCard title="Posts" value={stats?.posts ?? "—"} description="Publicados" />
+                  <StatCard title="Produtos" value={stats?.products ?? "—"} description="Cadastrados nas lojas" />
+                </>
+              )}
+            </div>
+          </section>
+
+          <section aria-labelledby="home-links-title">
+            <div className="mb-4">
+              <h2 id="home-links-title" className="text-lg font-bold">
+                Acessos rápidos
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Escolha a área que deseja administrar.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {quickLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="group flex min-h-32 flex-col justify-between rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-[#d9b323] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c6a520]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-base font-bold">{link.title}</h3>
+                    <span aria-hidden="true" className="text-lg leading-none text-gray-400 transition group-hover:text-[#806600]">
+                      ↗
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-5 text-gray-600">
+                    {link.description}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <footer className="border-t border-gray-200 pt-5 pb-6 text-xs text-gray-400">
             © {new Date().getFullYear()} Mais um Item — Admin
           </footer>
-        </section>
+        </div>
       </main>
     </div>
   );

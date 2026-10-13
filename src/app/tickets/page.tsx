@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import TopMenu from "../components/TopMenu";
+import ChangeContributionImageWithAiDialog from "../components/ChangeContributionImageWithAiDialog";
 
 import Image from "next/image";
 
@@ -115,6 +116,11 @@ export default function ContributionTicketsPage() {
   const [imgOpen, setImgOpen] = useState(false);
   const [imgItem, setImgItem] = useState<IItemStatsData | null>(null);
   const [imgTicketId, setImgTicketId] = useState<string | null>(null);
+  const [aiImageTicket, setAiImageTicket] = useState<{
+    id: string;
+    item: IItemStatsData;
+    image: string;
+  } | null>(null);
 
   const [credits, setCredits] = useState("");
 
@@ -984,6 +990,15 @@ export default function ContributionTicketsPage() {
                                     </button>
                                   )}
 
+                                  {isImages && item?.object?.trim().toLowerCase() === "camisa" && !!ticketImage && (
+                                    <button
+                                      className="cursor-pointer rounded-lg border border-gray-300 px-2.5 py-1.5 text-[11px] font-semibold transition hover:bg-gray-50"
+                                      onClick={() => setAiImageTicket({ id: t.id, item, image: ticketImage })}
+                                    >
+                                      Mudar imagem com IA
+                                    </button>
+                                  )}
+
                                   {/* Editar item — só REPORT */}
                                   {isReport && (
                                     <button
@@ -1017,6 +1032,20 @@ export default function ContributionTicketsPage() {
             </>
           )}
         </section>
+
+        {aiImageTicket && (
+          <ChangeContributionImageWithAiDialog
+            item={aiImageTicket.item}
+            ticketId={aiImageTicket.id}
+            ticketImage={aiImageTicket.image}
+            onClose={() => setAiImageTicket(null)}
+            onApproved={() => {
+              setAiImageTicket(null);
+              void queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
+              void queryClient.invalidateQueries({ queryKey: ["admin-items"] });
+            }}
+          />
+        )}
 
         {/* Modal Preview */}
         {previewImage && (

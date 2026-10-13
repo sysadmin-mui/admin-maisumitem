@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const maxDuration = 300;
+
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
   "content-length",

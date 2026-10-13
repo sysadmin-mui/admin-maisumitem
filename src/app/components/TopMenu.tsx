@@ -9,6 +9,8 @@ const BRAND_YELLOW = "#F4C82E";
 const BRAND_DARK = "#333333";
 
 const navItems = [
+  { label: "Produtos", href: "/produtos" },
+  { label: "Corrigir Produtos", href: "/products" },
   { label: "Usuários", href: "/usuarios" },
   { label: "Coleções", href: "/colecoes" },
   { label: "Contribuições", href: "/contribuicoes/itens" },
@@ -55,7 +57,7 @@ export default function TopMenu() {
           </Link>
 
           {/* Nav */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1">
             {navItems.map((item) => {
               const active =
                 pathname === item.href ||
@@ -97,7 +99,7 @@ export default function TopMenu() {
         </div>
 
         {/* Mobile nav */}
-        <div className="md:hidden pb-3">
+        <div className="lg:hidden pb-3">
           <div className="flex flex-wrap gap-2">
             {navItems.map((item) => {
               const active =
