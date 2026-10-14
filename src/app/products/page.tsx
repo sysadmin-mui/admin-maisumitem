@@ -11,26 +11,39 @@ import CreateCatalogOptionDialog, {
   CatalogOptionDraft,
   catalogCategoryLabels,
 } from "../components/CreateCatalogOptionDialog";
+import FillMissingAttributeDialog, { MissingAttributeDraft } from "../components/FillMissingAttributeDialog";
 import type { AdminProduct, CreateCatalogOptionPayload } from "../lib/types";
 import {
   fetchAdminProductObjectOptions,
   fetchAdminProductsMissingCatalogOption,
   createAdminCatalogOption,
   applyAdminProductCatalogOption,
+  fetchAdminProductsMissingAttribute,
+  fetchAdminMissingAttributeObjectOptions,
+  fillAdminProductMissingAttribute,
 } from "../lib/endpoints";
 
-type Field = "brand" | "team";
+type Field = "brand" | "team" | "null";
+type MissingField = "brand_name" | "team_name";
 
-const tabs: { field: Field; label: string; description: string }[] = [
+const tabs: { field: Field; label: string; title: string; description: string }[] = [
   {
     field: "brand",
     label: "Marca",
+    title: "Marca fora do catálogo",
     description: "Produtos com marca ausente de catalog_options.",
   },
   {
     field: "team",
     label: "Time",
+    title: "Time fora do catálogo",
     description: "Produtos com time ou seleção ausente de catalog_options.",
+  },
+  {
+    field: "null",
+    label: "Atributos = null",
+    title: "Atributos não preenchidos",
+    description: "Selecione o campo vazio para revisar os produtos.",
   },
 ];
 
@@ -44,6 +57,7 @@ export default function ProductsPage() {
   const queryClient = useQueryClient();
   const [authenticated, setAuthenticated] = useState(false);
   const [field, setField] = useState<Field>("brand");
+  const [missingField, setMissingField] = useState<MissingField>("brand_name");
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [word, setWord] = useState("");
@@ -54,6 +68,7 @@ export default function ProductsPage() {
   const [catalogDraft, setCatalogDraft] = useState<CatalogOptionDraft | null>(
     null,
   );
+  const [missingDraft, setMissingDraft] = useState<MissingAttributeDraft | null>(null);
   const [imageProduct, setImageProduct] = useState<AdminProduct | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -92,6 +107,32 @@ export default function ProductsPage() {
       );
     },
   });
+
+  const fillMutation = useMutation({
+    mutationFn: fillAdminProductMissingAttribute,
+    onSuccess: async ({ value, created_catalog_option }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-products-missing-attribute"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-product-object-options"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-products-missing-catalog-option"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-catalog-search"] }),
+      ]);
+      setMissingDraft(null);
+      setSuccessMessage(created_catalog_option
+        ? `“${value}” cadastrado no catálogo e aplicado ao produto.`
+        : `Campo preenchido com “${value}”.`);
+    },
+  });
+
+  function openMissingAttribute(product: AdminProduct) {
+    fillMutation.reset();
+    setSuccessMessage(null);
+    setMissingDraft({
+      product,
+      field: missingField,
+      category: missingField === "brand_name" ? "brands" : product.team_type === "Seleção" ? "nations" : "teams",
+    });
+  }
 
   function openCatalogConfirmation(product: AdminProduct) {
     const title = (
@@ -139,19 +180,17 @@ export default function ProductsPage() {
 
   const query = useQuery({
     queryKey: [
-      "admin-products-missing-catalog-option",
+      field === "null" ? "admin-products-missing-attribute" : "admin-products-missing-catalog-option",
       field,
+      missingField,
       page,
       word,
       selectedObjects,
     ],
     queryFn: () =>
-      fetchAdminProductsMissingCatalogOption(
-        field,
-        page,
-        word,
-        selectedObjects,
-      ),
+      field === "null"
+        ? fetchAdminProductsMissingAttribute(missingField, page, word, selectedObjects)
+        : fetchAdminProductsMissingCatalogOption(field, page, word, selectedObjects),
     enabled: authenticated,
     retry: (count, error) =>
       !(axios.isAxiosError(error) && error.response?.status === 401) &&
@@ -159,8 +198,10 @@ export default function ProductsPage() {
   });
 
   const objectOptionsQuery = useQuery({
-    queryKey: ["admin-product-object-options", field],
-    queryFn: () => fetchAdminProductObjectOptions(field),
+    queryKey: ["admin-product-object-options", field, missingField],
+    queryFn: () => field === "null"
+      ? fetchAdminMissingAttributeObjectOptions(missingField)
+      : fetchAdminProductObjectOptions(field),
     enabled: authenticated,
     retry: (count, error) =>
       !(axios.isAxiosError(error) && error.response?.status === 401) &&
@@ -171,6 +212,12 @@ export default function ProductsPage() {
     setField(next);
     setPage(1);
     setSelectedObjects([]);
+  }
+
+  function selectMissingField(next: MissingField) {
+    setMissingField(next);
+    setSelectedObjects([]);
+    setPage(1);
   }
 
   function toggleObject(object: string) {
@@ -209,8 +256,7 @@ export default function ProductsPage() {
               Correção de Produtos
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-gray-600">
-              Confira produtos cadastrados cujos dados ainda não constam nas
-              opções do catálogo.
+              Revise valores fora do catálogo e preencha marca ou time ausentes nos produtos.
             </p>
           </div>
           <button
@@ -235,9 +281,9 @@ export default function ProductsPage() {
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-200 px-5 pt-5 sm:px-7">
             <div
-              className="flex gap-2"
+              className="flex gap-2 overflow-x-auto"
               role="tablist"
-              aria-label="Campos do catálogo"
+              aria-label="Tipos de correção de produtos"
             >
               {tabs.map((tab) => (
                 <button
@@ -246,7 +292,7 @@ export default function ProductsPage() {
                   role="tab"
                   aria-selected={field === tab.field}
                   onClick={() => selectTab(tab.field)}
-                  className={`border-b-3 px-5 pb-4 pt-2 text-sm font-bold transition ${
+                  className={`shrink-0 whitespace-nowrap border-b-3 px-5 pb-4 pt-2 text-sm font-bold transition ${
                     field === tab.field
                       ? "border-[#f4c82e] text-[#303030]"
                       : "border-transparent text-gray-500 hover:text-[#303030]"
@@ -261,8 +307,7 @@ export default function ProductsPage() {
           <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
             <div>
               <h2 className="text-lg font-bold">
-                {tabs.find((tab) => tab.field === field)?.label} fora do
-                catálogo
+                {tabs.find((tab) => tab.field === field)?.title}
               </h2>
               <p className="text-sm text-gray-500">
                 {tabs.find((tab) => tab.field === field)?.description}
@@ -273,13 +318,13 @@ export default function ProductsPage() {
               className="flex w-full gap-2 sm:w-auto"
             >
               <label htmlFor="product-search" className="sr-only">
-                Buscar produto ou valor
+                {field === "null" ? "Buscar produto ou loja" : "Buscar produto ou valor"}
               </label>
               <input
                 id="product-search"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Buscar produto ou valor"
+                placeholder={field === "null" ? "Buscar produto ou loja" : "Buscar produto ou valor"}
                 className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#c6a520] sm:w-64"
               />
               <button
@@ -290,6 +335,16 @@ export default function ProductsPage() {
               </button>
             </form>
           </div>
+
+          {field === "null" && (
+            <div className="border-t border-gray-100 px-5 py-4 sm:px-7">
+              <label htmlFor="missing-field" className="block text-sm font-semibold">Coluna com valor null</label>
+              <select id="missing-field" value={missingField} onChange={(event) => selectMissingField(event.target.value as MissingField)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm sm:w-64">
+                <option value="brand_name">brand_name (Marca)</option>
+                <option value="team_name">team_name (Time ou seleção)</option>
+              </select>
+            </div>
+          )}
 
           <details className="border-t border-gray-100 px-5 py-4 sm:px-7">
             <summary className="cursor-pointer text-sm font-semibold">
@@ -386,8 +441,7 @@ export default function ProductsPage() {
             <div className="px-7 py-16 text-center">
               <p className="text-lg font-bold">Nenhum produto encontrado</p>
               <p className="mt-1 text-sm text-gray-500">
-                Os valores desta aba já estão no catálogo ou não há produtos
-                para a busca.
+                {field === "null" ? "Não há produtos com este campo vazio para a busca." : "Os valores desta aba já estão no catálogo ou não há produtos para a busca."}
               </p>
             </div>
           ) : (
@@ -434,11 +488,13 @@ export default function ProductsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-[#fff4c3] px-2.5 py-0.5 text-xs font-bold text-[#665000]">
-                        {field === "brand"
+                        {field === "null"
+                          ? `${missingField === "brand_name" ? "Marca" : "Time"} não informado`
+                          : field === "brand"
                           ? product.brand_name
                           : product.team_name}
                       </span>
-                      {field === "team" && product.team_type && (
+                      {(field === "team" || field === "null" && missingField === "team_name") && product.team_type && (
                         <span className="text-xs text-gray-500">
                           {product.team_type}
                         </span>
@@ -454,7 +510,12 @@ export default function ProductsPage() {
                       {product.merchant_name || "Loja não informada"} · Visto em{" "}
                       {formatDate(product.last_seen_at)}
                     </p>
-                    {product.similar_catalog_options !== undefined && (
+                    {field === "null" && (missingField === "brand_name" ? product.team_name : product.brand_name) && (
+                      <p className="mt-1 text-xs text-gray-600">
+                        {missingField === "brand_name" ? "Time" : "Marca"}: {missingField === "brand_name" ? product.team_name : product.brand_name}
+                      </p>
+                    )}
+                    {field !== "null" && product.similar_catalog_options !== undefined && (
                       <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                         <p className="text-xs font-semibold text-gray-600">
                           Nomes próximos no catálogo
@@ -482,22 +543,20 @@ export default function ProductsPage() {
                     )}
                     <button
                       type="button"
-                      onClick={() => openCatalogConfirmation(product)}
-                      disabled={createMutation.isPending || query.isFetching}
+                      onClick={() => field === "null" ? openMissingAttribute(product) : openCatalogConfirmation(product)}
+                      disabled={createMutation.isPending || fillMutation.isPending || query.isFetching}
                       className="mt-3 rounded-lg bg-[#f4c82e] px-3 py-2 text-xs font-bold hover:bg-[#e8bb20] disabled:opacity-50"
                     >
-                      {product.similar_catalog_options?.length
+                      {field === "null" ? "Revisar" : <>{product.similar_catalog_options?.length
                         ? "Revisar"
                         : "Cadastrar"}{" "}
-                      {
-                        catalogCategoryLabels[
+                        {catalogCategoryLabels[
                           field === "brand"
                             ? "brands"
                             : product.team_type === "Seleção"
                               ? "nations"
                               : "teams"
-                        ]
-                      }
+                        ]}</>}
                     </button>
                   </div>
                   {product.product_url && (
@@ -550,9 +609,23 @@ export default function ProductsPage() {
             await queryClient.invalidateQueries({
               queryKey: ["admin-products-missing-catalog-option"],
             });
+            await queryClient.invalidateQueries({ queryKey: ["admin-products-missing-attribute"] });
             setImageProduct(null);
             setSuccessMessage("Foto do produto atualizada.");
           }}
+        />
+      )}
+      {missingDraft && (
+        <FillMissingAttributeDialog
+          draft={missingDraft}
+          pending={fillMutation.isPending}
+          error={fillMutation.isError
+            ? axios.isAxiosError(fillMutation.error) && typeof fillMutation.error.response?.data?.message === "string"
+              ? fillMutation.error.response.data.message
+              : "Não foi possível preencher o campo. Tente novamente."
+            : null}
+          onClose={() => { if (!fillMutation.isPending) setMissingDraft(null); }}
+          onConfirm={(choice) => fillMutation.mutate({ product_id: missingDraft.product.id, field: missingDraft.field, ...choice })}
         />
       )}
       {catalogDraft && (

@@ -120,6 +120,45 @@ export async function fetchAdminProductsMissingCatalogOption(
   return data;
 }
 
+export async function fetchAdminProductsMissingAttribute(
+  field: "brand_name" | "team_name",
+  page: number,
+  word: string,
+  objects: string[],
+): Promise<AdminProductsPaginate> {
+  const { data } = await api.get<AdminProductsPaginate>(
+    "/admin/products/missing-attribute",
+    { params: { field, page, per_page: 20, word, objects: objects.join(",") || undefined } },
+  );
+  return data;
+}
+
+export async function fetchAdminMissingAttributeObjectOptions(
+  field: "brand_name" | "team_name",
+): Promise<string[]> {
+  const { data } = await api.get<string[]>(
+    "/admin/products/missing-attribute/objects",
+    { params: { field } },
+  );
+  return data;
+}
+
+export async function fillAdminProductMissingAttribute(payload: {
+  product_id: string;
+  field: "brand_name" | "team_name";
+  option_id?: number;
+  value?: string;
+  new_title?: string;
+  country?: string;
+  sport?: string;
+}): Promise<{ updated_products: number; value: string; created_catalog_option?: boolean }> {
+  const { data } = await api.patch<{ updated_products: number; value: string; created_catalog_option?: boolean }>(
+    "/admin/products/missing-attribute",
+    payload,
+  );
+  return data;
+}
+
 export async function fetchAdminProductObjectOptions(
   field: "brand" | "team",
 ): Promise<string[]> {
