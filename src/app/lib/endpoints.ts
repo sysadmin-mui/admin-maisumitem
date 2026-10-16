@@ -159,6 +159,10 @@ export async function fillAdminProductMissingAttribute(payload: {
   return data;
 }
 
+export async function deleteAdminProduct(id: string): Promise<void> {
+  await api.delete(`/admin/products/${id}`);
+}
+
 export async function fetchAdminProductObjectOptions(
   field: "brand" | "team",
 ): Promise<string[]> {

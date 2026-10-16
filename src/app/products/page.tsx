@@ -12,6 +12,7 @@ import CreateCatalogOptionDialog, {
   catalogCategoryLabels,
 } from "../components/CreateCatalogOptionDialog";
 import FillMissingAttributeDialog, { MissingAttributeDraft } from "../components/FillMissingAttributeDialog";
+import DeleteProductDialog from "../components/DeleteProductDialog";
 import type { AdminProduct, CreateCatalogOptionPayload } from "../lib/types";
 import {
   fetchAdminProductObjectOptions,
@@ -21,6 +22,7 @@ import {
   fetchAdminProductsMissingAttribute,
   fetchAdminMissingAttributeObjectOptions,
   fillAdminProductMissingAttribute,
+  deleteAdminProduct,
 } from "../lib/endpoints";
 
 type Field = "brand" | "team" | "null";
@@ -70,6 +72,7 @@ export default function ProductsPage() {
   );
   const [missingDraft, setMissingDraft] = useState<MissingAttributeDraft | null>(null);
   const [imageProduct, setImageProduct] = useState<AdminProduct | null>(null);
+  const [productToDelete, setProductToDelete] = useState<AdminProduct | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const createMutation = useMutation({
@@ -121,6 +124,25 @@ export default function ProductsPage() {
       setSuccessMessage(created_catalog_option
         ? `“${value}” cadastrado no catálogo e aplicado ao produto.`
         : `Campo preenchido com “${value}”.`);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (product: AdminProduct) => deleteAdminProduct(product.id),
+    onSuccess: async (_result, product) => {
+      if (query.data?.data.length === 1 && page > 1) {
+        setPage(page - 1);
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-products-missing-attribute"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-products-missing-catalog-option"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-product-object-options"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-all-products"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-all-products-filters"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-stats"] }),
+      ]);
+      setProductToDelete(null);
+      setSuccessMessage(`Produto “${product.name}” excluído.`);
     },
   });
 
@@ -541,23 +563,37 @@ export default function ProductsPage() {
                         )}
                       </div>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => field === "null" ? openMissingAttribute(product) : openCatalogConfirmation(product)}
-                      disabled={createMutation.isPending || fillMutation.isPending || query.isFetching}
-                      className="mt-3 rounded-lg bg-[#f4c82e] px-3 py-2 text-xs font-bold hover:bg-[#e8bb20] disabled:opacity-50"
-                    >
-                      {field === "null" ? "Revisar" : <>{product.similar_catalog_options?.length
-                        ? "Revisar"
-                        : "Cadastrar"}{" "}
-                        {catalogCategoryLabels[
-                          field === "brand"
-                            ? "brands"
-                            : product.team_type === "Seleção"
-                              ? "nations"
-                              : "teams"
-                        ]}</>}
-                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => field === "null" ? openMissingAttribute(product) : openCatalogConfirmation(product)}
+                        disabled={createMutation.isPending || fillMutation.isPending || deleteMutation.isPending || query.isFetching}
+                        className="rounded-lg bg-[#f4c82e] px-3 py-2 text-xs font-bold hover:bg-[#e8bb20] disabled:opacity-50"
+                      >
+                        {field === "null" ? "Revisar" : <>{product.similar_catalog_options?.length
+                          ? "Revisar"
+                          : "Cadastrar"}{" "}
+                          {catalogCategoryLabels[
+                            field === "brand"
+                              ? "brands"
+                              : product.team_type === "Seleção"
+                                ? "nations"
+                                : "teams"
+                          ]}</>}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          deleteMutation.reset();
+                          setSuccessMessage(null);
+                          setProductToDelete(product);
+                        }}
+                        disabled={createMutation.isPending || fillMutation.isPending || deleteMutation.isPending || query.isFetching}
+                        className="rounded-lg border border-red-300 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </div>
                   {product.product_url && (
                     <a
@@ -626,6 +662,19 @@ export default function ProductsPage() {
             : null}
           onClose={() => { if (!fillMutation.isPending) setMissingDraft(null); }}
           onConfirm={(choice) => fillMutation.mutate({ product_id: missingDraft.product.id, field: missingDraft.field, ...choice })}
+        />
+      )}
+      {productToDelete && (
+        <DeleteProductDialog
+          product={productToDelete}
+          pending={deleteMutation.isPending}
+          error={deleteMutation.isError
+            ? axios.isAxiosError(deleteMutation.error) && typeof deleteMutation.error.response?.data?.message === "string"
+              ? deleteMutation.error.response.data.message
+              : "Não foi possível excluir o produto. Tente novamente."
+            : null}
+          onClose={() => { if (!deleteMutation.isPending) setProductToDelete(null); }}
+          onConfirm={() => deleteMutation.mutate(productToDelete)}
         />
       )}
       {catalogDraft && (
